@@ -1,7 +1,7 @@
 import math
 import csv
+import random
 from typing import Dict, List, Tuple
-from scipy.spatial import distance_matrix
 
 # Calculate distance between two sets of coordinates
 def calculate_distance(lat1, lon1, lat2, lon2):
@@ -14,87 +14,87 @@ def calculate_distance(lat1, lon1, lat2, lon2):
     distance = R * c
     return distance
 
-# Load employee addresses from CSV file
-employee_addresses = []
-with open('employee_addresses.csv', 'r') as csvfile:
-    reader = csv.reader(csvfile)
-    next(reader)  # Skip header row
-    for row in reader:
-        address = row[0]
-        employee_addresses.append(address)
+# Employee allocation function
+def allocate_employees(employee_addresses, store_addresses):
+    employee_allocation: Dict[str, List[Tuple[str, float]]] = {}
+    total_distance: float = 0.0
 
-# Load store addresses from CSV file
-store_addresses = []
-with open('store_addresses.csv', 'r') as csvfile:
-    reader = csv.reader(csvfile)
-    next(reader)  # Skip header row
-    for row in reader:
-        address = row[0]
-        store_addresses.append(address)
+    # Track the number of employees allocated to each store
+    allocated_employees_per_store = {store: 0 for store in store_addresses}
 
-# Calculate distance matrix between employees and stores
-def calculate_distance_matrix():
-    employee_coords = [tuple(map(float, address.split(", "))) for address in employee_addresses]
-    store_coords = [tuple(map(float, address.split(", "))) for address in store_addresses]
+    for employee_address in employee_addresses:
+        employee_lat, employee_lon = map(float, employee_address.split(", "))
+        closest_store = None
+        min_distance = math.inf
 
-    # Calculate the distance matrix using the haversine distance between each pair of points
-    dist_matrix = distance_matrix(employee_coords, store_coords, p=2) * 6371  # Radius of the Earth
+        for store_address in store_addresses:
+            if allocated_employees_per_store[store_address] < 1000:  # Limit to 1000 employees per store
+                store_lat, store_lon = map(float, store_address.split(", "))
+                distance = calculate_distance(employee_lat, employee_lon, store_lat, store_lon)
+                if distance < min_distance:
+                    closest_store = store_address
+                    min_distance = distance
 
-    return dist_matrix
+        if closest_store is not None:
+            if closest_store in employee_allocation:
+                employee_allocation[closest_store].append((employee_address, min_distance))
+            else:
+                employee_allocation[closest_store] = [(employee_address, min_distance)]
 
-# Allocate employees to stores
-def allocate_employees_to_stores(dist_matrix):
-    num_employees, num_stores = dist_matrix.shape
+            total_distance += min_distance
+            allocated_employees_per_store[closest_store] += 1
 
-    # Create a list to keep track of the best employees for each store
-    best_employees_for_store = [[] for _ in range(num_stores)]
-
-    # Find the best 200 employees for each store
-    for employee_idx in range(num_employees):
-        best_store = None
-        min_distance = float('inf')
-
-        for store_idx in range(num_stores):
-            distance = dist_matrix[employee_idx, store_idx]
-            if distance < min_distance and len(best_employees_for_store[store_idx]) < 200:
-                best_store = store_idx
-                min_distance = distance
-
-        if best_store is not None:
-            best_employees_for_store[best_store].append((employee_idx, min_distance))
-
-    # Convert the best employees list to the required format
-    employee_allocation = {}
-    for store_idx, employees in enumerate(best_employees_for_store):
-        store_address = store_addresses[store_idx]
-        employee_allocation[store_address] = [(employee_addresses[idx], distance) for idx, distance in employees]
-
-    return employee_allocation
-
-# Write employee coordinates and assigned stores to CSV file
-def write_employee_allocation_to_csv(employee_allocation):
-    with open('employee_allocation.csv', 'w', newline='') as csvfile:
-        writer = csv.writer(csvfile)
-        writer.writerow(['Employee Address', 'Store Address', 'Distance (km)'])
-        for store_address, employees in employee_allocation.items():
-            for employee_address, distance in employees:
-                writer.writerow([employee_address, store_address, distance])
+    return employee_allocation, total_distance
 
 # Main function
 def main():
-    dist_matrix = calculate_distance_matrix()
-    employee_allocation = allocate_employees_to_stores(dist_matrix)
+    # Load employee addresses from CSV file
+    employee_addresses = []
+    with open('employee_addresses.csv', 'r') as csvfile:
+        reader = csv.reader(csvfile)
+        next(reader)  # Skip header row
+        for row in reader:
+            address = row[0]
+            employee_addresses.append(address)
 
-    # Print employee allocation results
-    for store_address, employees in employee_allocation.items():
-        print(f"Store Address: {store_address}")
-        for employee_address, distance in employees:
-            print(f"  - Employee Address: {employee_address}")
-            print(f"    Distance: {distance:.2f} km")
+    # Load store addresses from CSV file
+    store_addresses = []
+    with open('store_addresses.csv', 'r') as csvfile:
+        reader = csv.reader(csvfile)
+        next(reader)  # Skip header row
+        for row in reader:
+            address = row[0]
+            store_addresses.append(address)
 
-    # Write employee allocation to CSV
-    write_employee_allocation_to_csv(employee_allocation)
+    # Number of iterations to run
+    num_iterations = 10000
+    best_total_distance = math.inf
+    worst_total_distance = 0.0
+    best_employee_allocation = None
+
+    for i in range(num_iterations):
+        random.shuffle(employee_addresses)  # Shuffle employees to allocate differently each time
+        employee_allocation, total_distance = allocate_employees(employee_addresses, store_addresses)
+
+        # Update the best and worst solutions
+        if total_distance < best_total_distance:
+            best_total_distance = total_distance
+            best_employee_allocation = employee_allocation
+
+        if total_distance > worst_total_distance:
+            worst_total_distance = total_distance
+
+    print(f"Total Distance for the Best Solution: {best_total_distance:.2f} km")
+    print(f"Total Distance for the Worst Solution: {worst_total_distance:.2f} km")
+    print(f"Difference between Best and Worst Solutions: {worst_total_distance - best_total_distance:.2f} km")
+
+    # Write the best allocation results to CSV file
+    # with open('best_employee_allocation_result.csv', 'w', newline='') as csvfile:
+    #     writer = csv.writer(csvfile)
+    #     writer.writerow(['Store Address', 'Employee Address', 'Distance (km)'])
+    #     for store_address, employees in best_employee_allocation.items():
+    #         for employee_address, distance in employees:
+    #             writer.writerow([store_address, employee_address, distance])
 
 if __name__ == "__main__":
     main()
-
