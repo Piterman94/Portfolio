@@ -13,7 +13,7 @@ country = "Brazil"
 
 # Generate random addresses for employees
 employee_addresses = []
-for _ in range(1000):
+for _ in range(20000):
     location = geolocator.geocode(city + ", " + country)
     latitude = location.latitude + random.uniform(-0.05, 0.05)  # Add slight variation
     longitude = location.longitude + random.uniform(-0.05, 0.05)  # Add slight variation
@@ -23,7 +23,7 @@ for _ in range(1000):
 
 # Generate random addresses for stores
 store_addresses = []
-for _ in range(50):
+for _ in range(200):
     location = geolocator.geocode(city + ", " + country)
     latitude = location.latitude + random.uniform(-0.05, 0.05)  # Add slight variation
     longitude = location.longitude + random.uniform(-0.05, 0.05)  # Add slight variation
